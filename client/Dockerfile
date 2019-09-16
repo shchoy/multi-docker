@@ -3,7 +3,7 @@ FROM node:alpine as builder
 
 WORKDIR '/app'
 
-COPY package*.json ./
+COPY ./package.json ./
 RUN npm install
 COPY . .
 # will create a /app/build folder that stores the files 
