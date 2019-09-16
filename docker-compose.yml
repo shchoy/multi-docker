@@ -1,0 +1,47 @@
+version: '3'
+services:
+  postgres:
+    image: 'postgres:latest' #check at hub.docker.com
+  redis:
+    image: 'redis:latest'
+  nginx:
+    restart: always #auto restart if nginx crash
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    ports:
+      - '3050:80' #access from local machine port 3050 will autoroute to port 80 in container
+  api: # this is the express server
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server #location of the Dockerfile.dev
+    volumes:
+      - /app/node_modules #do not map this local folder to the container
+      - ./server:/app #map local "server" folder to the /app folder inside container
+    environment:
+      - REDIS_HOST=redis #this is based on the service name above
+      - REDIS_PORT=6379 #defaul port
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres #this is based on the service name above
+      - PGPASSWORD=postgres_password #default password
+      - PGPORT=5432 #defaul port
+    depends_on:
+      - postgres
+  client:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+  worker:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
+    environment:
+      - REDIS_HOST=redis #this is based on the service name above
+      - REDIS_PORT=6379 #defaul port
