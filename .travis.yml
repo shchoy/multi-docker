@@ -1,0 +1,57 @@
+language: generic 
+sudo: required #tell travis we require sudo permission
+services:
+  - docker #install a copy of docker
+
+before_install: #CMD to before a test/deploy is run
+  - docker build -t shchoy/react-test -f ./client/Dockerfile.dev ./client #tag image as shchoy/react-test to be used in travis
+  # you may add in more build for testing
+
+script: #test needs to automatically quit for travis to be aware it's completed
+  - docker run -e CI=true shchoy/react-test npm run test
+  # you may add in more test script
+
+after_success: #after above test succeeds, built the image
+  - docker build -t shchoy/multi-client ./client
+  - docker build -t shchoy/multi-nginx ./nginx
+  - docker build -t shchoy/multi-server ./server
+  - docker build -t shchoy/multi-worker ./worker
+  # Log in to the docker CLI using environment variables in travis
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # Take images and push to Docker Hub
+  - docker push shchoy/multi-client
+  - docker push shchoy/multi-nginx
+  - docker push shchoy/multi-server
+  - docker push shchoy/multi-worker
+  
+# # AWS Eleastic Beanstalk deploy
+deploy: #deploy to the AWS elasticbeanstalk created
+  provider: elasticbeanstalk
+  region: "ap-southeast-2"
+  app: "docker"
+  env: "Docker-env"
+  # bucket_name: "elasticbeanstalk-ap-southeast-1-643969562129"
+  bucket_name: "elasticbeanstalk-ap-southeast-2-643969562129"
+  bucket_path: "docker" # folder to create in S3 during deploy
+  on:
+    branch: master # deploy only when code is pushed to branch Master
+  access_key_id: 
+    secure: $AWS_ACCESS_KEY #get from travis environment variables
+  secret_access_key: 
+    secure: "$AWS_SECRET_KEY" #get from travis environment variables, need double quotes.
+
+# Deploy Heroku
+# deploy:
+#   provider: heroku
+#   api_key:
+#     secure: $HEROKU_API_KEY
+#   app: docker-react-heroku
+  # on:
+  #   repo: shchoy/docker-react
+
+# # Azure deploy
+# deploy:
+#   provider: azure_web_apps
+#   username: "shchoy"       # If AZURE_WA_USERNAME isn't set
+#   password: "$AZURE_PASSWORD"   # If AZURE_WA_PASSWORD isn't set
+#   site: "https://dockerweb.azurewebsites.net"       # If AZURE_WA_SITE isn't set
